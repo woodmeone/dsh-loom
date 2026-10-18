@@ -85,3 +85,37 @@ if (beginAt < 0 || endAt < 0 || endAt < beginAt) throw new Error("drill markers 
 client = client.slice(0, beginAt) + fragment + client.slice(endAt + END.length);
 writeFileSync(clientPath, client);
 console.log("embedded drill client into client.js (" + Buffer.byteLength(fragment) + " bytes fragment)");
+
+// ── 块管理面板 ────────────────────────────────────────────────
+// 与 drill 同样的做法：源码在 lib/loom-panel.client.js，
+// 构建时插进 loader 工厂体内的标记之间。手改 client.js 一律会被覆盖。
+const PANEL_BEGIN = "/* __DSH_LOOM_PANEL_BEGIN__ */";
+const PANEL_END = "/* __DSH_LOOM_PANEL_END__ */";
+const panelSrc = join(root, "lib", "loom-panel.client.js");
+let panelBody = readFileSync(panelSrc, "utf8").replace(/\r\n/g, "\n");
+// 去掉顶层 import/export —— 工厂体内要用外层作用域的 h / react / useState
+panelBody = panelBody
+	.replace(/^\s*export\s*\{[^}]*\}\s*;?\s*$/gm, "")
+	.replace(/^\s*export\s+(?:const|function|class)\s+/gm, "$1 ")
+	.replace(/^\s*import[^;]*;\s*$/gm, "");
+const panelFragment = `${PANEL_BEGIN}
+		/* 提示词块管理面板（源码 lib/loom-panel.client.js） */
+${panelBody}
+${PANEL_END}`;
+
+if (!client.includes(PANEL_BEGIN) || !client.includes(PANEL_END)) {
+	// 首次：插在 loader 工厂体最前面（h / react 已定义之后由外层保证）
+	const anchor = 'const inject = ["slots", "locale"];';
+	const at = client.indexOf(anchor);
+	if (at < 0) throw new Error("cannot find inject anchor for panel");
+	client = client.slice(0, at) + panelFragment + "\n\t\t" + client.slice(at);
+	console.log("inserted loom-panel markers into client.js");
+} else {
+	const pb = client.indexOf(PANEL_BEGIN);
+	const pe = client.indexOf(PANEL_END);
+	client = client.slice(0, pb) + panelFragment + client.slice(pe + PANEL_END.length);
+	console.log("replaced loom-panel block in client.js");
+}
+
+writeFileSync(clientPath, client);
+console.log("embedded loom panel (" + Buffer.byteLength(panelFragment) + " bytes)");
