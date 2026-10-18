@@ -1,19 +1,24 @@
 /**
- * 把 lib/redteam/client.js 抽成可嵌入的工厂片段，
- * 写进 client.js 里的 DSH_PURGE_DRILL 标记之间。
+ * 重建 client.js：
+ *   1. identity pass —— 模块 id / HTTP 路由 / NS / 存储键 / drill 标记都跟着包名走；
+ *   2. 把 lib/redteam/client.js 抽成可嵌入的工厂片段，写进 DSH_LOOM_DRILL 标记之间。
+ *
+ * client.js 是构建产物：不许手改，改动只能从 lib/redteam/client.js 和本脚本出去。
+ * identity pass 用 lib/legacy-purge-marks.js 的 toLoomMarks()，幂等。
  *
  * 用法：node scripts/build-client.mjs
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { toLoomMarks } from "../lib/legacy-purge-marks.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const drillSrc = join(root, "lib", "redteam", "client.js");
 const clientPath = join(root, "client.js");
 
-const BEGIN = "/* __DSH_PURGE_DRILL_BEGIN__ */";
-const END = "/* __DSH_PURGE_DRILL_END__ */";
+const BEGIN = "/* __DSH_LOOM_DRILL_BEGIN__ */";
+const END = "/* __DSH_LOOM_DRILL_END__ */";
 
 let raw = readFileSync(drillSrc, "utf8").replace(/\r\n/g, "\n");
 const startMark = "factory: (require) => {";
@@ -63,6 +68,14 @@ ${body}
 ${END}`;
 
 let client = readFileSync(clientPath, "utf8");
+// identity pass：包名已经不叫旧名字了，浏览器侧注册 id、HTTP 路由前缀、locale NS、
+// localStorage 键、drill 标记都要一起换，否则宿主按 package 名找不到这个模块
+// （dsh-client-modules 会直接抛「unknown entry」）。
+const renamed = toLoomMarks(client);
+if (renamed !== client) {
+	client = renamed;
+	console.log("identity pass: rewrote legacy markers in client.js");
+}
 if (!client.includes(BEGIN) || !client.includes(END)) {
 	throw new Error("client.js missing drill markers; run patch-client-dock.mjs first");
 }

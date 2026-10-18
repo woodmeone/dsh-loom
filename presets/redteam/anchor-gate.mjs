@@ -9,7 +9,7 @@
  * 红队指挥和执行角色一直看见原来的工具和人设。放开之后，整篇工作区说明
  * 改成点名文件路径，需要时再读。
  */
-export const name = 'dsh-purge-redteam-anchor'
+export const name = 'dsh-loom-redteam-anchor'
 
 const INSTRUCTION_FROM_RE = /(?:^|\n) *(?:Additional |Updated )?Instructions from: ([^\n]+)/g
 

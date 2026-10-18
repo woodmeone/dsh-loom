@@ -22,6 +22,38 @@
 - 上游历史的唯一记录是根目录 `release-notes.md`（**冻结，不再追加**）
 - 派生理由见 `docs/adr/0001-从-dsh-purge-派生.md`
 
+## 从 dsh-purge 切到 dsh-loom
+
+**必须先还原旧插件，再装新插件。**
+
+```sh
+dsh-purge --revert          # 或在旧 dock 里点 Clean → 还原
+dsh plugin --profile web remove dsh-purge   # desktop profile 同理
+dsh plugin --profile web add dsh-loom
+```
+
+为什么不还原就不能直接装：两层补丁都往宿主里插 **同一个 cordis id**，两边同时存在会让
+46 条代码补丁被打两遍；日志前缀、`[dsh-...]` 标记、`$DSH_HOME` 数据目录也会各写一套。
+
+`dsh-loom` 对旧盘面是**认账**的，不是硬重打：
+
+- `lib/legacy-purge-marks.js` 是唯一收着旧字面量（旧包名、`dshpg-` 段名前缀、
+  `__dsh_purge_deny_disabled__`、`DSH_PURGE_*`）的地方，**只用于识别与迁移，不用于新写入**。
+- 判定「这份补丁已经打过了」走 `markPresent()`：新标记没命中，再看一次旧插件写下的写法。
+  旧盘面因此不会被重打，也不会静默叠加。
+- 宿主文件里残留的旧写法会在 apply 时被整体迁移成新写法（`toLoomMarks()`，幂等）。
+
+没还原就装的话，需要人工确认或清理的残留：
+
+| 位置 | 说明 |
+|---|---|
+| `$DSH_HOME/dsh-purge/` | 旧数据目录。**不迁移**：`override-state.json`、`applied.json`、`installed-rev`、`hooks-deny.json`、`drill-grant.json` 都要靠新插件重新写一遍 |
+| `$DSH_HOME/prompt-inject.md` | 用户文件，**不迁移也不改写**；血统靠内容判（`looksLikePluginDefault()`），不靠状态目录。但旧状态里的 `customized` / `seedHash` 会丢，改过插件默认稿的人可能被判成「插件默认」而被重新 seed → **迁移前先备份这个文件** |
+| `*.dshpurge.bak`、`*.dsh-purge-rule.bak` | 备份后缀**故意不改名**：改名会让已有备份变成孤儿，还原会静默跳过，反而更危险 |
+| 旧 profiled 里的 `node_modules/dsh-purge` | 要自己 `dsh plugin remove dsh-purge` 删掉 |
+
+迁移完成后 `$DSH_HOME/dsh-loom/` 才是新家；数据目录改名不会带走旧状态。
+
 ## 模块地图
 
 ### 提示词层（本项目的主要演进区）
@@ -68,7 +100,7 @@
 |---|---|
 | 挂载与配置 | `cordis.patch.yml` |
 | 客户端 UI 包（构建产物） | `client.js`，由 `scripts/build-client.mjs` 生成 |
-| CLI | `bin/dsh-purge.js` |
+| CLI | `bin/dsh-loom.js` |
 | 脚本 | `scripts/embed-default-prompt.mjs`、`build-client.mjs`、`patch-client-dock.mjs`、`export-engagement-report.mjs`、`redteam-setup.sh` |
 | 发布 | `.github/workflows/release.yml` |
 
@@ -82,9 +114,9 @@ cordis.patch.yml  →  挂载 dsh-loom
 lib/index.js apply()
       ↓
 registerPromptSections(ctx, config)
-      ├─ dsh-loom            @ order -100000     ← 主提示词
-      ├─ dsh-loom:capability @ order -99999      ← 能力协议（capabilityProtocol 控制）
-      └─ dsh-loom:post       @ order 5100        ← 仅当 postPrompt 非空
+      ├─ dsh-loom                @ order -100000   ← 主提示词
+      ├─ dshpg-loom-capabilities @ order -99999    ← 能力协议（capabilityProtocol 控制）
+      └─ dsh-loom:post           @ order 5100      ← 仅当 postPrompt 非空
       ↓
 每个 section 的 text 每轮求值
       ↓
@@ -97,7 +129,7 @@ renderPrompt() 拼成一个字符串（空文本的 section 被过滤）
 
 主提示词的取文优先级（`lib/index.js`）：**提示词框自改 > `prompt-inject.md` > 加密默认稿**，并带「永不空串」兜底。
 
-**覆盖层**：`lib/core.js` 用 `$DSH_HOME/dsh-purge/override-state.json` 记录 `{customized, hash, seedHash, updatedAt}`；`looksLikePluginDefault()` 判断盘上那份是不是插件自带默认稿，决定是否重新 seed。
+**覆盖层**：`lib/core.js` 用 `$DSH_HOME/dsh-loom/override-state.json` 记录 `{customized, hash, seedHash, updatedAt}`；`looksLikePluginDefault()` 判断盘上那份是不是插件自带默认稿，决定是否重新 seed。
 
 **两处 `agent/pre-step` 钩子**（都在 `lib/index.js`）：
 
@@ -132,8 +164,8 @@ renderPrompt() 拼成一个字符串（空文本的 section 被过滤）
 | 路径 | 内容 |
 |---|---|
 | `$DSH_HOME/prompt-inject.md` | 现役提示词（22,343 字）。**目标形态下废弃** |
-| `$DSH_HOME/dsh-purge/override-state.json` | 覆盖状态 |
-| `$DSH_HOME/dsh-purge/` | 演练台授权文件 |
+| `$DSH_HOME/dsh-loom/override-state.json` | 覆盖状态 |
+| `$DSH_HOME/dsh-loom/` | 演练台授权文件 |
 | `$DSH_HOME/redteam/` | 演练台 SQLite 事实库 |
 
 ## 必须遵守的约束

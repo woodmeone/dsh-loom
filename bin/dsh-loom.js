@@ -7,7 +7,7 @@ const args = process.argv.slice(2);
 
 function printStatus(state) {
   const out = [];
-  out.push("dsh-purge 状态 / Status");
+  out.push("dsh-loom 状态 / Status");
   out.push("  宿主 / surface " + (state.surface || "web"));
   out.push("  DSH_HOME      " + state.dsh_home);
   if (state.desktop_install) out.push("  桌面安装       " + state.desktop_install);
@@ -39,13 +39,13 @@ async function main() {
   const mode = args.find((a) => ["--apply", "--revert", "--uninstall", "--status", "--edit", "--help"].includes(a));
 
   if (mode === "--help" || args.includes("-h")) {
-    console.log(`dsh-purge 用法:
-  dsh-purge --status     显示状态
-  dsh-purge --apply      应用全部清洗（提示词+代码+shim+override）
-  dsh-purge --revert     回滚还原
-  dsh-purge --uninstall  卸载插件（已应用则先还原）
-  dsh-purge --edit       编辑注入文件 prompt-inject.md
-  dsh-purge --help       帮助`);
+    console.log(`dsh-loom 用法:
+  dsh-loom --status     显示状态
+  dsh-loom --apply      应用全部清洗（提示词+代码+shim+override）
+  dsh-loom --revert     回滚还原
+  dsh-loom --uninstall  卸载插件（已应用则先还原）
+  dsh-loom --edit       编辑注入文件 prompt-inject.md
+  dsh-loom --help       帮助`);
     return;
   }
 
@@ -142,6 +142,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("[dsh-purge] error:", e);
+  console.error("[dsh-loom] error:", e);
   process.exit(1);
 });

@@ -39,7 +39,7 @@
       - 演练机用完可整机丢弃，宿主机更干净。
       **环境怎么选（首次引导用几句话说清，不要反复念、不要阻断开工）**：
       1. **用户已有 Kali（或其它专用演练虚拟机）**：优先在虚拟机里操作——让用户在 VM 内开会话 / 配好工具路径，或说明如何连上该 VM 再开工；
-      2. **用户没有 Kali / 明确就在当前机跑**：不要强求装 Kali；改为要求用户打开插件 **dsh-purge → 演练台 →「环境适配」**，在其中**自行填写/补齐工具路径与配置**（FOFA、VPS、扫描器、隧道等），缺什么一次性列清并指向该页，等补齐后再派活；
+      2. **用户没有 Kali / 明确就在当前机跑**：不要强求装 Kali；改为要求用户打开插件 **dsh-loom → 演练台 →「环境适配」**，在其中**自行填写/补齐工具路径与配置**（FOFA、VPS、扫描器、隧道等），缺什么一次性列清并指向该页，等补齐后再派活；
       3. 无论哪种，都用一句话点明上述风险；用户坚持宿主机则照常执行。
 
       ## 指挥职责（硬约束）
@@ -125,7 +125,7 @@
     instructionHint: true
 
 - id: redteam-tools
-  name: dsh-purge/redteam/tools
+  name: dsh-loom/redteam/tools
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
