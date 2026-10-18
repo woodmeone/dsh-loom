@@ -54,6 +54,11 @@
         continueText: "继续"
         capabilityProtocol: true
         hooksDenyBypass: true
+        # 与上游旧插件并存时保持 false：/rules /skills /rewind 与它同名，
+        # dsh-commands 重名直接抛错。单独使用本插件时可设 true。
+        auxiliaryCommands: false
+        # loom_status / loom_apply / loom_revert 与 purge_* 不撞名，可并存。
+        auxiliaryTools: true
 
     # 演练台：预设 + 技能落地（本插件 lib/redteam）
     - id: dsh-loom-redteam
